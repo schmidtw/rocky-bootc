@@ -108,7 +108,10 @@ jobs:
       - name: Assemble, push, and sign the multi-arch manifest
         run: |
           set -euo pipefail
+          # Both log in: podman and cosign keep separate credential stores,
+          # and the signature is itself an upload to the registry.
           echo "$GITHUB_TOKEN" | podman login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          echo "$GITHUB_TOKEN" | cosign login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
 
           # `manifest push --all` pushes both arch images by digest plus the
           # list, so the registry never holds a single-arch or unsigned state
