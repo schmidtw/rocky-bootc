@@ -1,0 +1,5 @@
+# Default install filesystem for bootc-image-builder, as in the EL manifests.
+# Without a default here, bib refuses to build a disk unless the user passes
+# --rootfs every time.
+[install]
+root-fs-type = "xfs"

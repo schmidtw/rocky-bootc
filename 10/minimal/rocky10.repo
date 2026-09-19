@@ -1,0 +1,16 @@
+# Rocky Linux 10 repos used by bootc-base-imagectl to assemble the rootfs.
+# These replace the CentOS Stream repos inside the builder stage, so every
+# package in the resulting base image is Rocky's.
+[rocky-baseos]
+name=Rocky Linux 10 - BaseOS
+mirrorlist=https://mirrors.rockylinux.org/mirrorlist?arch=$basearch&repo=BaseOS-10
+gpgcheck=1
+gpgkey=https://dl.rockylinux.org/pub/rocky/RPM-GPG-KEY-Rocky-10
+enabled=1
+
+[rocky-appstream]
+name=Rocky Linux 10 - AppStream
+mirrorlist=https://mirrors.rockylinux.org/mirrorlist?arch=$basearch&repo=AppStream-10
+gpgcheck=1
+gpgkey=https://dl.rockylinux.org/pub/rocky/RPM-GPG-KEY-Rocky-10
+enabled=1

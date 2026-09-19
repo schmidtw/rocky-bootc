@@ -1,0 +1,43 @@
+# Rocky Linux 10 bootc base image, minimal variant, built from scratch.
+#
+# Rocky publishes no bootc image. But bootc's own base-image tool
+# (bootc-base-imagectl, shipped inside every bootc image) assembles a bootable
+# rootfs from whatever RPM repos are configured -- so this uses the CentOS
+# Stream 10 bootc image purely as the BUILDER TOOLCHAIN, swaps its repo config
+# for Rocky 10's, and copies the resulting rootfs into a FROM scratch image.
+# Every package in the result comes from Rocky's own repos; nothing of CentOS
+# survives into the output.
+#
+# Build:  make build    (podman needs privileges; see Makefile)
+FROM quay.io/centos-bootc/centos-bootc:stream10 AS builder
+
+# Replace Stream repos with Rocky 10 so the new rootfs pulls only Rocky.
+RUN rm -f /etc/yum.repos.d/*.repo
+COPY rocky10.repo /etc/yum.repos.d/rocky10.repo
+
+# Our manifest goes in beside the upstream ones so it can include them. The
+# stock "standard" manifest includes RHEL/CentOS subscription packages (rhc,
+# subscription-manager) that Rocky doesn't ship, which is why we don't use it.
+# The manifest's add-files paths are relative to it, so its files go in the
+# same directory.
+COPY manifest.yaml 20-rocky.toml /usr/share/doc/bootc-base-imagectl/manifests/
+RUN mv /usr/share/doc/bootc-base-imagectl/manifests/manifest.yaml \
+       /usr/share/doc/bootc-base-imagectl/manifests/rocky-minimal.yaml \
+    && /usr/libexec/bootc-base-imagectl build-rootfs --manifest=rocky-minimal /target-rootfs
+
+FROM scratch
+COPY --from=builder /target-rootfs/ /
+
+# FROM scratch starts with an empty container config, so re-state what the
+# toolchain image and every other bootc base carry: run systemd by default,
+# and stop it with the signal systemd treats as "halt" rather than SIGTERM.
+CMD ["/sbin/init"]
+STOPSIGNAL SIGRTMIN+3
+
+LABEL containers.bootc=1
+LABEL ostree.bootable=1
+LABEL io.github.schmidtw.rocky-bootc.variant="minimal"
+LABEL org.opencontainers.image.title="rocky-bootc (minimal)"
+LABEL org.opencontainers.image.description="Unofficial Rocky Linux 10 bootc base image, minimal variant, rebuilt daily from Rocky's own repos — because there isn't an official one."
+LABEL org.opencontainers.image.source="https://github.com/schmidtw/rocky-bootc"
+LABEL org.opencontainers.image.licenses="MIT"

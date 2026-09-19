@@ -1,0 +1,49 @@
+# minimal: the smallest thing that is still a usable bootc base.
+#
+# This is the upstream "minimal" manifest (bootc, systemd, kernel, dnf) plus
+# what a from-scratch build needs so that bootc-image-builder can turn it
+# into a disk, and two upstream snippets that fix silent first-boot failures.
+# No network management, no ssh, no cloud-init: bring those in your own layer
+# (the README covers the non-obvious parts).
+#
+# This is the one image this repo publishes, so anything added here lands
+# under everyone's layer. When in doubt, it does not belong here.
+metadata:
+  summary: Upstream minimal (bootc, systemd, kernel, dnf) plus what disk builds and first boot need.
+
+# The Containerfile drops this file in beside upstream's manifests, so this
+# resolves to upstream's minimal/manifest.yaml.
+include:
+  - minimal/manifest.yaml
+  # Grow / to fill the disk on first boot. The unit only runs in a VM and
+  # only if /usr/bin/growpart exists, so in this image it is inert; layer
+  # cloud-utils-growpart and it just works. Anyone wanting it in a layer
+  # would otherwise have to vendor these two files out of the toolchain.
+  - standard/generic-growfs.yaml
+  # journald's "auto" storage only persists if /var/log/journal exists at
+  # boot, which it won't on a fresh /var -- so logs vanish on reboot. A dead
+  # machine with a volatile journal is undebuggable. Override with a
+  # higher-numbered journald.conf.d drop-in if you really want volatile.
+  - standard/persistent-journal.yaml
+
+packages:
+  # bootc `install to-filesystem` (how bootc-image-builder turns this container
+  # into a disk image) runs bootupd inside a bubblewrap sandbox rooted at the
+  # deployment, and bib executes bootc FROM this image -- so without bwrap
+  # every disk build fails with "Probing bootupd --filesystem support: No such
+  # file or directory". The standard centos-bootc images ship it for the same
+  # reason. This is the single most common way a from-scratch base turns out
+  # to be unusable, so it is not optional even here.
+  - bubblewrap
+
+exclude-packages:
+  # UKI packages not needed for bootc; posttrans scripts require the
+  # rpm-ostree kernel-install wrapper, which is unavailable during compose.
+  - kernel-debug-uki-virt
+  - kernel-uki-virt
+
+# Plain files dropped into the image: [source relative to this manifest,
+# absolute destination].
+add-files:
+  # XFS as the default install filesystem; see the file.
+  - [20-rocky.toml, /usr/lib/bootc/install/20-rocky.toml]
