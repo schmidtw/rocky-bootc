@@ -70,8 +70,18 @@ help:
 
 # Re-pull each time: a stale toolchain silently pins the compose to old
 # behaviour, which is confusing to debug.
+#
+# The toolchain is ~1.7 GB from quay.io's CDN, and now and then the connection
+# dies mid-blob ("unexpected EOF"). podman's built-in retry does not always
+# recover that, and the podman on Ubuntu 24.04 (GitHub's runners) is too old
+# for `pull --retry`, so retry here. A re-pull keeps the layers it already
+# has and only fetches the rest.
 pull:
-	$(PODMAN) pull $(BUILDER)
+	@for n in 1 2 3 4 5; do \
+	    $(PODMAN) pull $(BUILDER) && exit 0; \
+	    [ $$n -lt 5 ] || break; \
+	    echo "==> pull failed (attempt $$n of 5); retrying in 20s"; sleep 20; \
+	done; echo "==> giving up on pulling $(BUILDER)" >&2; exit 1
 
 build: pull
 	$(PODMAN) build $(COMPOSE_FLAGS) -t $(REF) $(MAJOR)/minimal/
