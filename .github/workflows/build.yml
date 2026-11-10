@@ -54,7 +54,7 @@ jobs:
       matrix:
         include:
           - { arch: amd64, runner: ubuntu-latest }
-          - { arch: arm64, runner: ubuntu-24.04-arm }
+          - { arch: arm64, runner: ubuntu-26.04-arm }
     runs-on: ${{ matrix.runner }}
     env:
       ARCH: ${{ matrix.arch }}
@@ -65,6 +65,20 @@ jobs:
       PREVIOUS: docker://ghcr.io/${{ github.repository }}:10-minimal
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Ubuntu 26.04 ships an AppArmor profile for bwrap (`unpriv_bwrap`) that
+      # attaches to any process running a binary named bwrap -- including the
+      # one inside the build container -- and denies it CAP_DAC_OVERRIDE. The
+      # compose runs package scripts under bwrap, so groupadd cannot open the
+      # mode-000 /etc/gshadow, no groups get created, and the build aborts.
+      # Unload the profile for the life of this runner. 24.04 has no such
+      # profile, so there this finds nothing and does nothing.
+      - name: Unload the host's bwrap AppArmor profile
+        run: |
+          for f in $(grep -ls 'unpriv_bwrap' /etc/apparmor.d/* || true); do
+            echo "unloading $f"
+            sudo apparmor_parser -R "$f"
+          done
 
       - name: Build
         run: make build
