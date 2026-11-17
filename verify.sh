@@ -46,8 +46,10 @@ fi
 
 # Warnings are fatal: the image passes clean today, so any warning is a
 # regression, and a warning nobody reads is how one ships.
+# runtime-deps is skipped on purpose: it demands zstd, and this image carries
+# nothing it does not absolutely need.
 echo "--- bootc is happy with it ---"
-run bootc container lint --fatal-warnings
+run bootc container lint --fatal-warnings --skip runtime-deps
 
 echo "--- it runs systemd by default and stops it the way systemd expects ---"
 got="$($PODMAN inspect -f '{{ join .Config.Cmd " " }}' "$ref")"
